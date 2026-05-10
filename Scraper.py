@@ -1,82 +1,74 @@
 import json
 import logging
-import re
 import time
 import uuid
-from datetime import date, datetime, timedelta
+import os
+from datetime import date, timedelta
+from client import fetch_html
+from parsers import extract_article_links, extract_article_text
+from configuration import LIST_URL, MAX_LIST_PAGES, DELAY_BETWEEN_REQUESTS, OUTPUT_DIR
 
-import requests
-from bs4 import BeautifulSoup
-
-from .config import ID_MONTHS, timeout
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%H:%M:%S",
-)
 log = logging.getLogger(__name__)
 
+class AntaraScraper:
+    print('using scraper')
+    def collect_candidates(self, target_date: date) -> list[str]:
+        links, seen = [], set()
 
-def _get(url: str, retries: int = 3) -> BeautifulSoup | None:
+        for page in range(1, MAX_LIST_PAGES + 1):
+            url = LIST_URL if page == 1 else f"{LIST_URL}?page={page}"
+            log.info("Fetching page %d: %s", page, url)
+            print(url)
+            soup = fetch_html(url)
 
-    for attempt in range(1, retries + 1):
-        try:
-            resp = requests.get(
-                url, headers=sConf.HEADERS, timeout=sConf.REQUEST_TIMEOUT
-            )
-            resp.raise_for_status()
-            return BeautifulSoup(resp.text, "lxml")
-        except requests.RequestException as exc:
-            log.warning("Attempt %d/%d failed for %s — %s", attempt, retries, url, exc)
-            if attempt < retries:
-                time.sleep(2**attempt)
-    return None
+            if not soup:
+                break
 
+            articles = extract_article_links(soup)
 
-def _parse_timestamp(raw: str) -> date | None:
+            print('article ',articles)
+            if not articles:
+                break
 
-    raw = raw.strip()
-    if not raw:
-        return None
+            for art in articles:
+                if art["date"] == target_date and art["link"] not in seen:
+                    seen.add(art["link"])
+                    links.append(art["link"])
+        print('collecting')
+        print(links)
+        print(seen)
+        return links
 
-    try:
-        iso = re.sub(r"[+-]\d{2}:\d{2}$", "", raw).strip()
-        return datetime.fromisoformat(iso).date()
-    except ValueError:
-        pass
+    def scrape_target_date(self, target_date: date) -> list[dict]:
+        log.info("Starting scrape for date: %s", target_date.isoformat())
+        links = self.collect_candidates(target_date)
+        results = []
+        print(results)
+        for idx, link in enumerate(links, 1):
+            log.info("[%d/%d] Fetching: %s", idx, len(links), link)
+            time.sleep(DELAY_BETWEEN_REQUESTS)
 
-    m = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", raw)
-    if m:
-        try:
-            return date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
-        except ValueError:
-            pass
+            soup = fetch_html(link)
+            if not soup:
+                continue
 
-    m = re.search(r"(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})", raw)
-    if m:
-        day = int(m.group(1))
-        month = sConf.ID_MONTHS.get(m.group(2).lower())
-        year = int(m.group(3))
-        if month:
-            try:
-                return date(year, month, day)
-            except ValueError:
-                pass
+            text = extract_article_text(soup)
+            if text:
+                results.append({
+                    "id": str(uuid.uuid4()),
+                    "link": link,
+                    "content": text,
+                    "scraped_at": date.today().isoformat()
+                })
 
-    log.debug("Could not parse timestamp: %r", raw)
-    return None
+        self._save_results(results, target_date)
+        return results
 
-
-def _clean_text(text: str) -> str:
-    """Strip excessive whitespace, normalise newlines."""
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
-
-
-def main():
-    print("Hello from newssummarizer!")
-
-
-if __name__ == "__main__":
-    main()
+    def _save_results(self, data: list[dict], target_date: date):
+        if not data:
+            return
+        print('saving result')
+        filepath = os.path.join(OUTPUT_DIR, f"antaranews_{target_date.isoformat()}.json")
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        log.info("Saved %d records to %s", len(data), filepath)
