@@ -1,4 +1,6 @@
 import os
+
+
 BASE_URL = "https://en.antaranews.com"
 LIST_URL = f"{BASE_URL}/business-investment"
 
@@ -9,6 +11,8 @@ DELAY_BETWEEN_REQUESTS = 1.0
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "data")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+print('this is output path',OUTPUT_DIR)
+
 BROWSERS = {
     "SAFARI": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
     "CHROME": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
@@ -17,6 +21,7 @@ BROWSERS = {
 DEFAULT_HEADERS = {"User-Agent": BROWSERS["SAFARI"]}
 
 ID_MONTHS = {
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "mei": 5, "jun": 6,
+    "jul": 7, "agu": 8, "sep": 9, "okt": 10, "nov": 11, "des": 12,
+    "may": 5, "aug": 8, "oct": 10, "dec": 12
 }
