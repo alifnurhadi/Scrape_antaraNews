@@ -20,9 +20,9 @@ class AntaraScraper:
             log.info("Fetching page %d: %s", page, url)
             print(url)
             soup = fetch_html(url)
-
+            print(soup)
             if not soup:
-                break
+                return
 
             articles = extract_article_links(soup)
 

@@ -15,12 +15,17 @@ def parse_timestamp(raw: str) -> date | None:
     except ValueError:
         pass
 
-    m = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", raw)
+    m = re.search(r"(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})", raw)
     if m:
-        try:
-            return date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
-        except ValueError:
-            pass
+        day = int(m.group(1))
+        # Ensure robust matching by checking the first 3 letters
+        month = ID_MONTHS.get(m.group(2).lower()[:3])
+        year = int(m.group(3))
+        if month:
+            try:
+                return date(year, month, day)
+            except ValueError:
+                pass
 
     m = re.search(r"(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})", raw)
     if m:
